@@ -11,4 +11,4 @@ if [[ ! -f "$JAR" ]]; then
   )
 fi
 
-exec java -jar "$JAR"
+exec java -Xms8m -Xmx64m -XX:MaxMetaspaceSize=64m -XX:ReservedCodeCacheSize=24m -Xss512k -XX:+UseSerialGC -jar "$JAR"
