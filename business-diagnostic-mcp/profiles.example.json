@@ -1,0 +1,40 @@
+{
+  "profiles": {
+    "test-mysql": {
+      "type": "mysql",
+      "host": "127.0.0.1",
+      "port": 3306,
+      "database": "whatsapp_crm",
+      "user": "readonly_user",
+      "passwordEnv": "BUSINESS_DIAGNOSTIC_TEST_MYSQL_PASSWORD",
+      "allowedTables": [
+        "message_template",
+        "message_template_waba",
+        "message_material_group",
+        "message_material_combination",
+        "message_material",
+        "task",
+        "task_sub"
+      ],
+      "sensitiveFields": [
+        "password",
+        "secret",
+        "token",
+        "phone",
+        "mobile",
+        "email",
+        "id_card",
+        "bank_card"
+      ]
+    },
+    "test-mongo": {
+      "type": "mongo",
+      "uriEnv": "BUSINESS_DIAGNOSTIC_TEST_MONGO_URI",
+      "database": "whatsapp_crm_metrics",
+      "allowedCollections": [
+        "task_metrics",
+        "message_trace"
+      ]
+    }
+  }
+}

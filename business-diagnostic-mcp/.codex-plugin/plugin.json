@@ -1,0 +1,23 @@
+{
+  "name": "business-diagnostic-mcp",
+  "version": "0.1.0",
+  "description": "Standalone read-only MySQL and Mongo diagnostic MCP server with a local stdio transport.",
+  "author": {
+    "name": "OPay WhatsApp CRM"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Business Diagnostic MCP",
+    "shortDescription": "Read-only MySQL and Mongo diagnostics",
+    "longDescription": "Run safe, read-only business data diagnostics with pagination, IN batching, masking, credential-safe profiles, and an extensible transport layer.",
+    "developerName": "OPay WhatsApp CRM",
+    "category": "Productivity",
+    "capabilities": ["Read"],
+    "defaultPrompt": [
+      "List my diagnostic profiles.",
+      "Explain the schema of a business table.",
+      "Diagnose a business record across MySQL and Mongo."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}
