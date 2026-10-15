@@ -23,7 +23,9 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <mongodb-driver-sync.version>3.12.11</mongodb-driver-sync.version>
+        <!-- Keep driver-sync, driver-core and bson on one version; a mismatch
+             makes MongoClientSettings fail with NoSuchMethodError at runtime. -->
+        <mongodb.version>3.12.11</mongodb.version>
     </properties>
 
     <dependencies>
@@ -43,7 +45,17 @@
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-sync</artifactId>
-            <version>${mongodb-driver-sync.version}</version>
+            <version>${mongodb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-core</artifactId>
+            <version>${mongodb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>bson</artifactId>
+            <version>${mongodb.version}</version>
         </dependency>
 
         <dependency>

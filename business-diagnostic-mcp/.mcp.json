@@ -8,12 +8,14 @@
       "enabled_tools": [
         "list_log_environments",
         "query_logs",
-        "get_apollo_configs",
         "list_profiles",
         "get_schema",
         "query_mysql",
         "count_mysql",
-        "explain_mysql"
+        "explain_mysql",
+        "query_mongo",
+        "count_mongo",
+        "explain_mongo"
       ],
       "env_vars": [
         "BUSINESS_DIAGNOSTIC_CONFIG"

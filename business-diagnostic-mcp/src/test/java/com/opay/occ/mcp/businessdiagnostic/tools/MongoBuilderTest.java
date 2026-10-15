@@ -24,6 +24,21 @@ class MongoBuilderTest {
     }
 
     @Test
+    void shouldDefaultSortToNewestFirstOnIdIndex() {
+        assertThat(MongoBuilder.buildSortWithDefault(null).getInteger("_id")).isEqualTo(-1);
+        assertThat(MongoBuilder.buildSortWithDefault(new LinkedHashMap<String, Object>())
+                .getInteger("_id")).isEqualTo(-1);
+    }
+
+    @Test
+    void shouldKeepExplicitSort() {
+        Map<String, Object> sort = new LinkedHashMap<>();
+        sort.put("send_time", -1);
+        assertThat(MongoBuilder.buildSortWithDefault(sort).getInteger("send_time")).isEqualTo(-1);
+        assertThat(MongoBuilder.buildSortWithDefault(sort)).doesNotContainKey("_id");
+    }
+
+    @Test
     void shouldRejectUnsupportedOperators() {
         Map<String, Object> filter = new LinkedHashMap<>();
         filter.put("$where", "return true");
@@ -47,5 +62,20 @@ class MongoBuilderTest {
         assertThatThrownBy(() -> MongoBuilder.buildFilter(filter))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("supports at most 500");
+    }
+
+    @Test
+    void shouldRejectWriteStagesInFilters() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("$out", "copy");
+        Map<String, Object> merge = new LinkedHashMap<>();
+        merge.put("$merge", "copy");
+
+        assertThatThrownBy(() -> MongoBuilder.buildFilter(out))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported Mongo operator");
+        assertThatThrownBy(() -> MongoBuilder.buildFilter(merge))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported Mongo operator");
     }
 }

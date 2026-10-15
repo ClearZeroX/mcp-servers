@@ -12,7 +12,7 @@ Investigate application logs stored in the `test_log` table for the whatsapp-crm
 - This skill is for **test environments only**; today only `idn-test` is configured.
 - **Never use it for production or 线上 problems.** If the user says a production issue is happening
   (线上 / 生产 / prod), say that these diagnostics are restricted to test environments and stop;
-  do not call `query_logs` or `get_apollo_configs`.
+  do not call `query_logs`.
 - Production environment names are refused by the server itself: a `logDiagnostic.environments`
   entry containing `prod` is never loaded (it only shows up as `blockedEnvironments` in
   `list_log_environments`), and `query_logs` then fails with "Production environment is not allowed".
@@ -76,12 +76,6 @@ service and the keyword yourself**; do not ask the user for a keyword and do not
    unsure), read `matchedTraceIds`, then re-query by `traceId` to get the whole request trail.
 5. **State your reasoning briefly** to the user: which module you inspected, which keyword you
    derived and why, and which service(s) you scanned.
-
-## Reading Apollo configuration
-
-Call `get_apollo_configs` when the investigation depends on a feature flag or a configuration value.
-Filter with `keyKeyword` to avoid dumping every property. Values come from the same
-apollo-client path the application uses, so they reflect the running service.
 
 ## Safety
 

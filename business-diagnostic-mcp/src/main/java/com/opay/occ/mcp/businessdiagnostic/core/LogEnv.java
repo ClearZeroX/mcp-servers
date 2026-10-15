@@ -1,5 +1,7 @@
 package com.opay.occ.mcp.businessdiagnostic.core;
 
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,6 +14,12 @@ import java.util.List;
  */
 public final class LogEnv {
 
+    /**
+     * Time zone assumed for {@code log_time} column values when an environment does not
+     * declare its own {@code logTimeZone}.
+     */
+    public static final String DEFAULT_LOG_TIME_ZONE = "Asia/Shanghai";
+
     private final String name;
     private final String mysqlHost;
     private final int mysqlPort;
@@ -22,6 +30,8 @@ public final class LogEnv {
     private final String apolloMeta;
     private final List<String> apolloNamespaces;
     private final String apolloAccessKeyEnv;
+    private final String logTimeZone;
+    private final ZoneId logTimeZoneId;
 
     private LogEnv(Builder builder) {
         this.name = builder.name;
@@ -34,6 +44,21 @@ public final class LogEnv {
         this.apolloMeta = builder.apolloMeta;
         this.apolloNamespaces = Collections.unmodifiableList(new ArrayList<>(builder.apolloNamespaces));
         this.apolloAccessKeyEnv = builder.apolloAccessKeyEnv;
+        this.logTimeZone = resolveZoneName(builder.logTimeZone);
+        this.logTimeZoneId = resolveZoneId(this.logTimeZone);
+    }
+
+    private static String resolveZoneName(String configured) {
+        return (configured == null || configured.trim().isEmpty())
+                ? DEFAULT_LOG_TIME_ZONE : configured.trim();
+    }
+
+    private static ZoneId resolveZoneId(String zoneName) {
+        try {
+            return ZoneId.of(zoneName);
+        } catch (DateTimeException e) {
+            throw new IllegalArgumentException("Invalid logTimeZone: " + zoneName, e);
+        }
     }
 
     public String getName() {
@@ -85,6 +110,19 @@ public final class LogEnv {
         return apolloAccessKeyEnv;
     }
 
+    /**
+     * Time zone in which the {@code log_time} column values are stored, for example
+     * {@code UTC} or {@code Asia/Shanghai}. Query boundaries are formatted in this zone
+     * and stored values are parsed with it.
+     */
+    public String getLogTimeZone() {
+        return logTimeZone;
+    }
+
+    public ZoneId getLogTimeZoneId() {
+        return logTimeZoneId;
+    }
+
     /** Resolves the Apollo access key secret, or null when not configured or unset. */
     public String getApolloAccessKey() {
         if (apolloAccessKeyEnv == null || apolloAccessKeyEnv.isEmpty()) {
@@ -109,6 +147,7 @@ public final class LogEnv {
         private String apolloMeta;
         private List<String> apolloNamespaces = Collections.emptyList();
         private String apolloAccessKeyEnv;
+        private String logTimeZone;
 
         private Builder(String name) {
             this.name = name;
@@ -120,6 +159,12 @@ public final class LogEnv {
             this.mysqlDatabase = database;
             this.mysqlUser = user;
             this.mysqlPasswordEnv = passwordEnv;
+            return this;
+        }
+
+        /** Time zone of the log_time column; defaults to {@link #DEFAULT_LOG_TIME_ZONE}. */
+        public Builder logTimeZone(String zoneName) {
+            this.logTimeZone = zoneName;
             return this;
         }
 

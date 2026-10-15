@@ -7,14 +7,17 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -46,6 +49,7 @@ public final class LogTools {
             item.put("name", env.getName());
             item.put("mysqlHost", env.getMysqlHost());
             item.put("mysqlDatabase", env.getMysqlDatabase());
+            item.put("logTimeZone", env.getLogTimeZone());
             item.put("apolloAppId", env.getApolloAppId());
             item.put("apolloMeta", env.getApolloMeta());
             item.put("apolloNamespaces", env.getApolloNamespaces());
@@ -76,9 +80,10 @@ public final class LogTools {
         LogEnv logEnv = config.requireEnvironment(env);
         List<String> services = config.resolveServices(service);
         String table = config.getLogTable();
+        ZoneId zone = logEnv.getLogTimeZoneId();
         long[] window = resolveTimeWindow(timeStart, timeEnd, System.currentTimeMillis());
         List<SqlBuilder.SqlQuery> queries = buildQuery(
-                table, services, traceId, keyword, logLevel, window[0], window[1], limit, order);
+                table, services, traceId, keyword, logLevel, window[0], window[1], limit, order, zone);
 
         String password = logEnv.getMysqlPassword();
         if (password == null || password.isEmpty()) {
@@ -91,7 +96,7 @@ public final class LogTools {
                 logEnv.getMysqlHost(), logEnv.getMysqlPort(), logEnv.getMysqlDatabase(),
                 logEnv.getMysqlUser(), password)) {
             for (SqlBuilder.SqlQuery query : queries) {
-                rows.addAll(executeQuery(connection, query));
+                rows.addAll(executeQuery(connection, query, zone));
             }
         } catch (SQLException e) {
             throw new IllegalStateException("MySQL log query failed: " + e.getMessage(), e);
@@ -111,12 +116,13 @@ public final class LogTools {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("ok", true);
         response.put("env", logEnv.getName());
+        response.put("logTimeZone", logEnv.getLogTimeZone());
         response.put("table", table);
         response.put("services", services);
         response.put("traceId", traceId);
         response.put("keyword", keyword);
-        response.put("timeStart", format(window[0]));
-        response.put("timeEnd", format(window[1]));
+        response.put("timeStart", format(window[0], zone));
+        response.put("timeEnd", format(window[1], zone));
         response.put("rows", page);
         response.put("rowCount", page.size());
         response.put("serviceHits", serviceHits);
@@ -138,7 +144,7 @@ public final class LogTools {
 
     static List<SqlBuilder.SqlQuery> buildQuery(String table, List<String> services, String traceId,
                                                 String keyword, String logLevel, long startMillis,
-                                                long endMillis, int limit, String order) {
+                                                long endMillis, int limit, String order, ZoneId zone) {
         if (limit < 1 || limit > MAX_LIMIT) {
             throw new IllegalArgumentException("limit must be between 1 and " + MAX_LIMIT);
         }
@@ -160,8 +166,8 @@ public final class LogTools {
         }
         // MySQL compares DATETIME columns correctly against formatted string literals;
         // passing epoch millis would be converted into YYYYMMDDHHMMSS and break the range.
-        where.add(condition("log_time", "gte", format(startMillis)));
-        where.add(condition("log_time", "lte", format(endMillis)));
+        where.add(condition("log_time", "gte", format(startMillis, zone)));
+        where.add(condition("log_time", "lte", format(endMillis, zone)));
 
         List<Map<String, Object>> orderBy = Collections.singletonList(
                 orderBy("log_time", "desc".equalsIgnoreCase(order) ? "desc" : "asc"));
@@ -169,10 +175,10 @@ public final class LogTools {
         return SqlBuilder.buildSelect(table, LOG_COLUMNS, where, orderBy, limit, 0);
     }
 
-    private static List<Map<String, Object>> executeQuery(Connection connection, SqlBuilder.SqlQuery query)
-            throws SQLException {
+    private static List<Map<String, Object>> executeQuery(Connection connection, SqlBuilder.SqlQuery query,
+                                                          ZoneId zone) throws SQLException {
         List<Map<String, Object>> rows = new ArrayList<>();
-        try (PreparedStatement statement = connection.prepareStatement(query.getSql())) {
+        try (PreparedStatement statement = JdbcSupport.prepareReadOnly(connection, query.getSql())) {
             statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             List<Object> params = query.getParams();
             for (int i = 0; i < params.size(); i++) {
@@ -184,9 +190,12 @@ public final class LogTools {
                     row.put("id", resultSet.getLong("id"));
                     row.put("serviceName", resultSet.getString("service_name"));
                     row.put("pod", resultSet.getString("pod"));
-                    long logTimeMillis = resultSet.getTimestamp("log_time") == null
-                            ? 0L : resultSet.getTimestamp("log_time").getTime();
-                    row.put("logTime", format(logTimeMillis));
+                    // The stored value is a zone-less DATETIME; interpret it with the
+                    // environment's log time zone so the epoch millis are correct.
+                    java.sql.Timestamp logTime = resultSet.getTimestamp(
+                            "log_time", Calendar.getInstance(TimeZone.getTimeZone(zone)));
+                    long logTimeMillis = logTime == null ? 0L : logTime.getTime();
+                    row.put("logTime", format(logTimeMillis, zone));
                     row.put("logTimeMillis", logTimeMillis);
                     row.put("traceId", resultSet.getString("trace_id"));
                     row.put("logLevel", resultSet.getString("log_level"));
@@ -213,8 +222,10 @@ public final class LogTools {
         return order;
     }
 
-    private static String format(long millis) {
-        return new SimpleDateFormat(LOG_TIME_FORMAT).format(new Date(millis));
+    /** Formats an instant in the given zone, e.g. {@code 2025-10-09 16:53:20.000}. */
+    private static String format(long millis, ZoneId zone) {
+        return DateTimeFormatter.ofPattern(LOG_TIME_FORMAT).withZone(zone)
+                .format(Instant.ofEpochMilli(millis));
     }
 
     private static boolean isBlank(String value) {

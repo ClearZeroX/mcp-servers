@@ -45,7 +45,8 @@ public final class ToolRegistry {
                         props(
                                 prop("profile", "string", "Profile name"),
                                 prop("table", "string", "Table name"),
-                                prop("where", "array", "Structured where conditions")
+                                arrayProp("where", "Structured where conditions; all conditions are ANDed",
+                                        whereItemProperties(), Arrays.asList("field", "op"))
                         ),
                         Arrays.asList("profile", "table")
                 )
@@ -57,12 +58,15 @@ public final class ToolRegistry {
         ));
         tools.add(tool(
                 "query_mongo",
-                "Run a safe, read-only Mongo find query.",
+                "Run a safe, read-only Mongo find query. Results are newest-first by default "
+                        + "(sorted on the _id index, which is fast); pass sort to change it, but "
+                        + "sorting on a non-indexed field scans the whole collection.",
                 mongoQuerySchema()
         ));
         tools.add(tool(
                 "count_mongo",
-                "Count Mongo documents for a safe filter.",
+                "Count Mongo documents for a safe filter. An empty filter is answered from "
+                        + "collection metadata (estimated, no scan).",
                 objectSchema(
                         props(
                                 prop("profile", "string", "Profile name"),
@@ -129,9 +133,11 @@ public final class ToolRegistry {
         Map<String, Object> properties = props(
                 prop("profile", "string", "Profile name"),
                 prop("table", "string", "Table name"),
-                prop("columns", "array", "Columns to select; empty means all columns"),
-                prop("where", "array", "Structured where conditions"),
-                prop("orderBy", "array", "Order by fields and directions"),
+                stringArrayProp("columns", "Columns to select; empty means all columns"),
+                arrayProp("where", "Structured where conditions; all conditions are ANDed",
+                        whereItemProperties(), Arrays.asList("field", "op")),
+                arrayProp("orderBy", "Order by clauses, e.g. [{\"field\":\"id\",\"direction\":\"desc\"}]",
+                        orderByItemProperties(), Arrays.asList("field", "direction")),
                 prop("limit", "integer", "Maximum rows to return, from 1 to 1000"),
                 prop("offset", "integer", "Offset for pagination, from 0 to 10000")
         );
@@ -147,7 +153,7 @@ public final class ToolRegistry {
                 prop("collection", "string", "Collection name"),
                 prop("filter", "object", "Mongo filter object"),
                 prop("projection", "object", "Mongo projection object"),
-                prop("sort", "object", "Mongo sort object"),
+                prop("sort", "object", "Mongo sort object, e.g. {\"_id\":-1}; defaults to {\"_id\":-1} (newest first)"),
                 prop("limit", "integer", "Maximum documents to return, from 1 to 1000"),
                 prop("skip", "integer", "Number of documents to skip, from 0 to 10000")
         );
@@ -184,6 +190,49 @@ public final class ToolRegistry {
             result.put(entry.getKey(), entry.getValue());
         }
         return result;
+    }
+
+    /** Properties of one {@code where} entry. */
+    private static Map<String, Object> whereItemProperties() {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("description", "Condition value; an array for in/notIn, omitted for isNull/isNotNull");
+        return props(
+                prop("field", "string", "Column name"),
+                prop("op", "string", "One of: eq, ne, gt, gte, lt, lte, like, in, notIn, isNull, isNotNull"),
+                new java.util.AbstractMap.SimpleEntry<String, Object>("value", value)
+        );
+    }
+
+    /** Properties of one {@code orderBy} entry. */
+    private static Map<String, Object> orderByItemProperties() {
+        return props(
+                prop("field", "string", "Column name"),
+                prop("direction", "string", "asc or desc")
+        );
+    }
+
+    private static Map.Entry<String, Object> arrayProp(String name, String description,
+                                                       Map<String, Object> itemProperties,
+                                                       List<String> itemRequired) {
+        Map<String, Object> items = new LinkedHashMap<>();
+        items.put("type", "object");
+        items.put("properties", itemProperties);
+        items.put("required", itemRequired);
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "array");
+        schema.put("description", description);
+        schema.put("items", items);
+        return new java.util.AbstractMap.SimpleEntry<>(name, schema);
+    }
+
+    private static Map.Entry<String, Object> stringArrayProp(String name, String description) {
+        Map<String, Object> items = new LinkedHashMap<>();
+        items.put("type", "string");
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "array");
+        schema.put("description", description);
+        schema.put("items", items);
+        return new java.util.AbstractMap.SimpleEntry<>(name, schema);
     }
 
     private static Map.Entry<String, Object> prop(String name, String type, String description) {

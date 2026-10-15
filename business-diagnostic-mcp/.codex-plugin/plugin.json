@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Business Diagnostic MCP",
     "shortDescription": "Read-only MySQL, Mongo and log diagnostics",
-    "longDescription": "Run safe, read-only business data diagnostics and application log triage with pagination, IN batching, credential-safe profiles, Apollo configuration lookup, and an extensible transport layer.",
+    "longDescription": "Run safe, read-only business data diagnostics and application log triage with pagination, IN batching, credential-safe profiles, and an extensible transport layer.",
     "developerName": "OPay WhatsApp CRM",
     "category": "Productivity",
     "capabilities": ["Read"],
@@ -17,8 +17,7 @@
       "List my diagnostic profiles.",
       "Explain the schema of a business table.",
       "Investigate a log by trace id.",
-      "Search logs for a template name or phone number.",
-      "Read the Apollo configuration of the current environment."
+      "Search logs for a template name or phone number."
     ]
   },
   "mcpServers": "./.mcp.json"

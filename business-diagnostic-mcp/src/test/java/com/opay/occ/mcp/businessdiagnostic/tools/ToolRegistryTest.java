@@ -46,4 +46,23 @@ class ToolRegistryTest {
                 "timeStart", "timeEnd", "limit", "order");
         assertThat((java.util.List<String>) schema.get("required")).isEmpty();
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void mysqlWhereAndOrderByShouldBeDeclaredAsArraysOfObjects() {
+        java.util.Map<String, Object> schema = null;
+        for (java.util.Map<String, Object> tool : ToolRegistry.listTools()) {
+            if ("query_mysql".equals(tool.get("name"))) {
+                schema = (java.util.Map<String, Object>) tool.get("inputSchema");
+            }
+        }
+        assertThat(schema).isNotNull();
+        java.util.Map<String, Object> properties = (java.util.Map<String, Object>) schema.get("properties");
+        for (String name : new String[]{"where", "orderBy"}) {
+            java.util.Map<String, Object> declared = (java.util.Map<String, Object>) properties.get(name);
+            java.util.Map<String, Object> items = (java.util.Map<String, Object>) declared.get("items");
+            assertThat(items).as(name).isNotNull();
+            assertThat(items.get("type")).as(name).isEqualTo("object");
+        }
+    }
 }

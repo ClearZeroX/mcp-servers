@@ -75,6 +75,7 @@ class ProfileStoreTest {
                 + "          \"user\": \"MOCK_READONLY_USER\",\n"
                 + "          \"passwordEnv\": \"LOG_DIAGNOSTIC_IDN_TEST_MYSQL_PASSWORD\"\n"
                 + "        },\n"
+                + "        \"logTimeZone\": \"UTC\",\n"
                 + "        \"apollo\": {\n"
                 + "          \"appId\": \"whatsapp-crm\", \"meta\": \"http://10.99.1.187:8080\",\n"
                 + "          \"namespaces\": [\"application\", \"llm.yml\"],\n"
@@ -95,6 +96,28 @@ class ProfileStoreTest {
         assertThat(logConfig.requireEnvironment(null).getApolloNamespaces())
                 .containsExactly("application", "llm.yml");
         assertThat(logConfig.requireEnvironment("idn-test").getMysqlUser()).isEqualTo("MOCK_READONLY_USER");
+        assertThat(logConfig.requireEnvironment("idn-test").getLogTimeZone()).isEqualTo("UTC");
+        assertThat(logConfig.requireEnvironment("idn-test").getLogTimeZoneId())
+                .isEqualTo(java.time.ZoneId.of("UTC"));
+    }
+
+    @Test
+    void shouldDefaultLogTimeZoneWhenAbsent() {
+        LogEnv env = LogEnv.builder("idn-test")
+                .mysql("h", 3306, "d", "u", "P")
+                .build();
+        assertThat(env.getLogTimeZone()).isEqualTo(LogEnv.DEFAULT_LOG_TIME_ZONE);
+        assertThat(env.getLogTimeZoneId()).isEqualTo(java.time.ZoneId.of(LogEnv.DEFAULT_LOG_TIME_ZONE));
+    }
+
+    @Test
+    void shouldRejectInvalidLogTimeZone() {
+        assertThatThrownBy(() -> LogEnv.builder("idn-test")
+                .mysql("h", 3306, "d", "u", "P")
+                .logTimeZone("Not/AZone")
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid logTimeZone");
     }
 
     @Test

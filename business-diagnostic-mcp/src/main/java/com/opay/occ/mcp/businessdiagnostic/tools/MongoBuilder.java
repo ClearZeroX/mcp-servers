@@ -13,6 +13,13 @@ public final class MongoBuilder {
     public static final int MAX_SKIP = 10000;
     public static final int MAX_IN_SIZE = 500;
 
+    /**
+     * Fallback sort field used when the caller does not specify one. Sorting backwards on
+     * {@code _id} is served by the always-present _id index, so the server can stop as soon
+     * as {@code limit} matches are found instead of scanning and in-memory sorting everything.
+     */
+    public static final String DEFAULT_SORT_FIELD = "_id";
+
     private MongoBuilder() {
     }
 
@@ -52,6 +59,15 @@ public final class MongoBuilder {
         return result;
     }
 
+    /** Builds the sort clause, falling back to newest-first on the _id index. */
+    public static Document buildSortWithDefault(Map<String, Object> sort) {
+        Document result = buildSort(sort);
+        if (result.isEmpty()) {
+            result.put(DEFAULT_SORT_FIELD, -1);
+        }
+        return result;
+    }
+
     public static void validatePagination(int limit, int skip) {
         if (limit < 1 || limit > MAX_LIMIT) {
             throw new IllegalArgumentException("limit must be between 1 and " + MAX_LIMIT);
@@ -70,7 +86,8 @@ public final class MongoBuilder {
                 if (key == null || key.trim().isEmpty()) {
                     throw new IllegalArgumentException("Mongo object keys must not be empty");
                 }
-                if ("$where".equals(key) || "$function".equals(key) || "$accumulator".equals(key)) {
+                if ("$where".equals(key) || "$function".equals(key) || "$accumulator".equals(key)
+                        || "$out".equals(key) || "$merge".equals(key)) {
                     throw new IllegalArgumentException("Unsupported Mongo operator: " + key);
                 }
                 Object child = entry.getValue();

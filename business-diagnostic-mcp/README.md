@@ -90,6 +90,8 @@ export BUSINESS_DIAGNOSTIC_TEST_MONGO_URI='mongodb://...'
 The optional `logDiagnostic` section of `profiles.json` configures log triage:
 
 - `defaultEnvironment` and `environments.<name>` hold the MySQL connection and Apollo coordinates.
+- `environments.<name>.logTimeZone` (optional, default `Asia/Shanghai`) declares the time zone of the
+  `log_time` column, so query windows and returned timestamps line up with stored values.
 - MySQL passwords and Apollo access keys are read from the environment variables named by `passwordEnv` and `accessKeyEnv`.
 - Only `idn-test` is configured today; multi-environment support is a TODO because apollo-client keeps process-wide credentials.
 - String values that start with `MOCK_` are placeholders and must be replaced with real read-only credentials.
@@ -154,7 +156,7 @@ Business data:
 - `query_mysql`
 - `count_mysql`
 - `explain_mysql`
-- `query_mongo`
+- `query_mongo` (requires the `test-mongo` profile and its URI env var)
 - `count_mongo`
 - `explain_mongo`
 
@@ -162,10 +164,11 @@ Log diagnostics (`test_log`, retained for about 2 hours):
 
 - `list_log_environments` — environments, default environment, service aliases
 - `query_logs` — search by `traceId` or `keyword`; defaults to the last 20 minutes and all four services
-- `get_apollo_configs` — read Apollo configuration through apollo-client
 
-`.mcp.json` only exposes the log tools plus the MySQL business tools through `enabled_tools`;
-the Mongo tools stay registered but are hidden to keep the tool catalogue small.
+`.mcp.json` exposes the log tools plus the MySQL and Mongo business tools through `enabled_tools`.
+`get_apollo_configs` stays registered but hidden: Apollo is only reachable from the corporate
+network, and hiding it keeps the tool catalogue small. To re-enable it, put its name back into
+`enabled_tools` and reinstall the plugin.
 
 ## Skills
 

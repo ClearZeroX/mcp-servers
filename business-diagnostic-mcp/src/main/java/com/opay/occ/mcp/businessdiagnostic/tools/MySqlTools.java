@@ -5,7 +5,6 @@ import com.opay.occ.mcp.businessdiagnostic.core.Profile;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -103,7 +102,7 @@ public final class MySqlTools {
         long total = 0;
         try (Connection connection = openConnection(profile)) {
             for (SqlBuilder.SqlQuery query : queries) {
-                try (PreparedStatement statement = connection.prepareStatement(query.getSql())) {
+                try (PreparedStatement statement = JdbcSupport.prepareReadOnly(connection, query.getSql())) {
                     statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
                     bindParameters(statement, query.getParams());
                     try (ResultSet resultSet = statement.executeQuery()) {
@@ -155,15 +154,8 @@ public final class MySqlTools {
         if (password == null || password.isEmpty()) {
             throw new IllegalStateException("Missing password environment variable: " + profile.getPasswordEnv());
         }
-        String url = "jdbc:mysql://" + profile.getHost() + ":" + profile.getPort() + "/" + profile.getDatabase()
-                + "?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai"
-                + "&connectTimeout=3000&socketTimeout=5000";
-        Connection connection = DriverManager.getConnection(url, profile.getUser(), password);
-        try (java.sql.Statement statement = connection.createStatement()) {
-            statement.execute("SET SESSION TRANSACTION READ ONLY");
-        }
-        connection.setReadOnly(true);
-        return connection;
+        return JdbcSupport.openReadOnly(profile.getHost(), profile.getPort(), profile.getDatabase(),
+                profile.getUser(), password);
     }
 
     private static List<Map<String, Object>> executeQuery(
@@ -171,7 +163,7 @@ public final class MySqlTools {
             SqlBuilder.SqlQuery query,
             Profile profile
     ) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(query.getSql())) {
+        try (PreparedStatement statement = JdbcSupport.prepareReadOnly(connection, query.getSql())) {
             statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             bindParameters(statement, query.getParams());
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -208,7 +200,7 @@ public final class MySqlTools {
                 + "FROM information_schema.COLUMNS "
                 + "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? "
                 + "ORDER BY ORDINAL_POSITION";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = JdbcSupport.prepareReadOnly(connection, sql)) {
             statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             statement.setString(1, profile.getDatabase());
             statement.setString(2, table);
@@ -227,7 +219,7 @@ public final class MySqlTools {
                 + "FROM information_schema.STATISTICS "
                 + "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? "
                 + "ORDER BY INDEX_NAME, SEQ_IN_INDEX";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = JdbcSupport.prepareReadOnly(connection, sql)) {
             statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             statement.setString(1, profile.getDatabase());
             statement.setString(2, table);

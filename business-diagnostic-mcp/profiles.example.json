@@ -30,10 +30,18 @@
     "test-mongo": {
       "type": "mongo",
       "uriEnv": "BUSINESS_DIAGNOSTIC_TEST_MONGO_URI",
-      "database": "whatsapp_crm_metrics",
+      "database": "whatsapp_crm",
       "allowedCollections": [
-        "task_metrics",
-        "message_trace"
+        "message_record",
+        "sub_task_data",
+        "business_phone_stats",
+        "message_material"
+      ],
+      "sensitiveFields": [
+        "phone",
+        "mobile",
+        "phoneNumber",
+        "email"
       ]
     }
   },
@@ -48,6 +56,7 @@
     },
     "environments": {
       "idn-test": {
+        "logTimeZone": "UTC",
         "mysql": {
           "host": "MOCK_IDN_TEST_HOST",
           "port": 3306,

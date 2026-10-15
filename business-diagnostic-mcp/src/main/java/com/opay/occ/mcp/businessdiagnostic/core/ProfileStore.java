@@ -143,7 +143,9 @@ public final class ProfileStore {
         }
         int port = mysql.has("port") && mysql.get("port").canConvertToInt() ? mysql.get("port").asInt() : 3306;
 
-        LogEnv.Builder builder = LogEnv.builder(name).mysql(host, port, database, user, passwordEnv);
+        LogEnv.Builder builder = LogEnv.builder(name)
+                .mysql(host, port, database, user, passwordEnv)
+                .logTimeZone(textOrNull(node, "logTimeZone"));
 
         JsonNode apollo = node.get("apollo");
         if (apollo != null && !apollo.isNull()) {
