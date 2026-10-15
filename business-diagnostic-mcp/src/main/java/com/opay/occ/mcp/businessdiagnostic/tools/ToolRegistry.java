@@ -77,6 +77,47 @@ public final class ToolRegistry {
                 "Explain a safe, read-only Mongo find query.",
                 mongoQuerySchema()
         ));
+        tools.add(tool(
+                "list_log_environments",
+                "List configured log diagnostic environments, the default environment, "
+                        + "and service aliases (api/job/mq/otp) mapped to service_name values.",
+                objectSchema(Collections.<String, Object>emptyMap(), Collections.<String>emptyList())
+        ));
+        tools.add(tool(
+                "query_logs",
+                "Query test_log. Provide traceId, or keyword (matched against log content, "
+                        + "for example a template name or phone number), or both. When service is "
+                        + "omitted all four whatsapp-crm services are queried. When no time range is "
+                        + "given the last 20 minutes are used. Returns matchedTraceIds so a keyword "
+                        + "search can be followed by a traceId search.",
+                objectSchema(
+                        props(
+                                prop("env", "string", "Log environment name; defaults to the configured default"),
+                                prop("service", "string", "Service alias (api/job/mq/otp) or full service name; omit to query all services"),
+                                prop("traceId", "string", "Exact trace id; required unless keyword is provided"),
+                                prop("keyword", "string", "Substring matched against log content; required unless traceId is provided"),
+                                prop("logLevel", "string", "Exact log level: DEBUG, INFO, WARN or ERROR"),
+                                prop("timeStart", "integer", "Start time in epoch milliseconds; defaults to 20 minutes before timeEnd"),
+                                prop("timeEnd", "integer", "End time in epoch milliseconds; defaults to now"),
+                                prop("limit", "integer", "Maximum rows to return, 1 to 1000; defaults to 200"),
+                                prop("order", "string", "log_time order: asc (default) or desc")
+                        ),
+                        Collections.<String>emptyList()
+                )
+        ));
+        tools.add(tool(
+                "get_apollo_configs",
+                "Read Apollo configuration the same way the application does (apollo-client), "
+                        + "returning namespace, key and value. Configuration comments are not available.",
+                objectSchema(
+                        props(
+                                prop("env", "string", "Log environment name; defaults to the configured default"),
+                                prop("namespace", "string", "Apollo namespace; omit to read every configured namespace"),
+                                prop("keyKeyword", "string", "Case-insensitive substring filter on the property key")
+                        ),
+                        Collections.<String>emptyList()
+                )
+        ));
         return tools;
     }
 

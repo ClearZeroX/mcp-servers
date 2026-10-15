@@ -1,11 +1,30 @@
 ---
 name: business-data-diagnostics
-description: Use the business-diagnostic-mcp tools to inspect read-only MySQL and Mongo business data, explain schemas, and diagnose records with safe pagination and masking.
+description: Use ONLY when the user explicitly asks to inspect or diagnose business data of a TEST environment, compare business tables, or explain a MySQL/Mongo schema. Do not use for log investigation, do not use it for production (线上 / prod) problems, and never call its tools proactively or speculatively.
 ---
 
 # Business Data Diagnostics
 
 Use this skill when the user asks to inspect business data, diagnose a record, compare tables, or explain a MySQL/Mongo schema through the local MCP server.
+
+## When to use
+
+Call these tools only after the user explicitly asks for business data work, for example:
+
+- inspect or diagnose a business record;
+- look at a specific table, column, or row;
+- compare two tables;
+- explain a MySQL or Mongo schema.
+
+## When NOT to use
+
+- Do not call `list_profiles`, `get_schema`, `query_mysql`, `count_mysql`, `explain_mysql`,
+  `query_mongo`, `count_mongo`, or `explain_mongo` unless the user asked for the work above.
+- Do not call them "just to check" or to preload context.
+- Do not call them for log investigation; use the `log-diagnostics` skill instead.
+- Do not use them for production or 线上 problems: every configured profile points at a test
+  environment. If the user is asking about a production issue, say so and stop.
+- These calls are expensive, so keep them rare and targeted.
 
 ## Workflow
 

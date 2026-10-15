@@ -16,7 +16,34 @@ class ToolRegistryTest {
                 .extracting(tool -> tool.get("name"))
                 .containsExactly(
                         "list_profiles", "get_schema", "query_mysql", "count_mysql", "explain_mysql",
-                        "query_mongo", "count_mongo", "explain_mongo"
+                        "query_mongo", "count_mongo", "explain_mongo",
+                        "list_log_environments", "query_logs", "get_apollo_configs"
                 );
+    }
+
+    @Test
+    void shouldExposeLogQueryTools() {
+        java.util.List<java.util.Map<String, Object>> tools = ToolRegistry.listTools();
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (java.util.Map<String, Object> tool : tools) {
+            names.add(String.valueOf(tool.get("name")));
+        }
+        assertThat(names).contains("list_log_environments", "query_logs");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void queryLogsSchemaShouldRequireNothingButExposeKeywordAndTraceId() {
+        java.util.Map<String, Object> schema = null;
+        for (java.util.Map<String, Object> tool : ToolRegistry.listTools()) {
+            if ("query_logs".equals(tool.get("name"))) {
+                schema = (java.util.Map<String, Object>) tool.get("inputSchema");
+            }
+        }
+        assertThat(schema).isNotNull();
+        java.util.Map<String, Object> properties = (java.util.Map<String, Object>) schema.get("properties");
+        assertThat(properties).containsKeys("env", "service", "traceId", "keyword", "logLevel",
+                "timeStart", "timeEnd", "limit", "order");
+        assertThat((java.util.List<String>) schema.get("required")).isEmpty();
     }
 }

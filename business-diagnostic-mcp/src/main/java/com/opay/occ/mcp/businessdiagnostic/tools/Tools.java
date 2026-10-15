@@ -40,7 +40,47 @@ public final class Tools {
         if ("explain_mongo".equals(name)) {
             return explainMongo(args, profiles);
         }
+        if ("list_log_environments".equals(name)) {
+            return LogTools.listEnvironments(profiles.getLogConfig());
+        }
+        if ("query_logs".equals(name)) {
+            return queryLogs(args, profiles);
+        }
+        if ("get_apollo_configs".equals(name)) {
+            return ApolloTools.getConfigs(
+                    profiles.getLogConfig(),
+                    optionalStringArg(args, "env"),
+                    optionalStringArg(args, "namespace"),
+                    optionalStringArg(args, "keyKeyword")
+            );
+        }
         throw new IllegalArgumentException("Unknown tool: " + name);
+    }
+
+    private static Map<String, Object> queryLogs(Map<String, Object> args, ProfileStore profiles) {
+        return LogTools.query(
+                profiles.getLogConfig(),
+                optionalStringArg(args, "env"),
+                optionalStringArg(args, "service"),
+                optionalStringArg(args, "traceId"),
+                optionalStringArg(args, "keyword"),
+                optionalStringArg(args, "logLevel"),
+                longArg(args, "timeStart"),
+                longArg(args, "timeEnd"),
+                intArg(args, "limit", LogTools.DEFAULT_LIMIT),
+                optionalStringArg(args, "order")
+        );
+    }
+
+    private static Long longArg(Map<String, Object> args, String name) {
+        Object value = args.get(name);
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof Number)) {
+            throw new IllegalArgumentException(name + " must be a number");
+        }
+        return ((Number) value).longValue();
     }
 
     private static Map<String, Object> listProfiles(ProfileStore profiles) {

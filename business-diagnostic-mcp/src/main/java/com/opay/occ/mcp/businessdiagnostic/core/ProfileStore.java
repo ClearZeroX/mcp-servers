@@ -24,15 +24,21 @@ public final class ProfileStore {
     );
 
     private final Map<String, Profile> profiles;
+    private final LogConfig logConfig;
 
-    private ProfileStore(Map<String, Profile> profiles) {
+    private ProfileStore(Map<String, Profile> profiles, LogConfig logConfig) {
         this.profiles = Collections.unmodifiableMap(profiles);
+        this.logConfig = logConfig;
+    }
+
+    public LogConfig getLogConfig() {
+        return logConfig;
     }
 
     public static ProfileStore loadDefault() {
         Path path = defaultConfigPath();
         if (!Files.exists(path)) {
-            return new ProfileStore(Collections.<String, Profile>emptyMap());
+            return new ProfileStore(Collections.<String, Profile>emptyMap(), LogConfig.empty());
         }
         return load(path);
     }
@@ -50,22 +56,109 @@ public final class ProfileStore {
             throw new IllegalArgumentException("Unable to read profile config: " + path, e);
         }
 
-        if (!root.isObject() || !root.has("profiles") || !root.get("profiles").isObject()) {
+        if (!root.isObject()) {
+            throw new IllegalArgumentException("Profile config must be a JSON object");
+        }
+        if (root.has("profiles") && !root.get("profiles").isNull() && !root.get("profiles").isObject()) {
             throw new IllegalArgumentException("Profile config must contain a profiles object");
         }
 
-        Map<String, Profile> result = new LinkedHashMap<>();
+        Map<String, Profile> profiles = new LinkedHashMap<>();
         JsonNode profilesNode = root.get("profiles");
-        profilesNode.fields().forEachRemaining(entry -> {
-            String name = entry.getKey();
-            JsonNode node = entry.getValue();
-            if (!node.isObject()) {
-                throw new IllegalArgumentException("Profile must be an object: " + name);
-            }
-            result.put(name, parseProfile(name, node));
-        });
+        if (profilesNode != null && profilesNode.isObject()) {
+            profilesNode.fields().forEachRemaining(entry -> {
+                String name = entry.getKey();
+                JsonNode node = entry.getValue();
+                if (!node.isObject()) {
+                    throw new IllegalArgumentException("Profile must be an object: " + name);
+                }
+                profiles.put(name, parseProfile(name, node));
+            });
+        }
 
-        return new ProfileStore(result);
+        return new ProfileStore(profiles, parseLogConfig(root));
+    }
+
+    private static LogConfig parseLogConfig(JsonNode root) {
+        JsonNode node = root.get("logDiagnostic");
+        if (node == null || node.isNull()) {
+            return LogConfig.empty();
+        }
+        if (!node.isObject()) {
+            throw new IllegalArgumentException("logDiagnostic must be an object");
+        }
+        String defaultEnvironment = textOrNull(node, "defaultEnvironment");
+        String logTable = textOrNull(node, "logTable");
+
+        Map<String, String> services = new LinkedHashMap<>();
+        JsonNode servicesNode = node.get("services");
+        if (servicesNode != null && !servicesNode.isNull()) {
+            if (!servicesNode.isObject()) {
+                throw new IllegalArgumentException("logDiagnostic.services must be an object");
+            }
+            servicesNode.fields().forEachRemaining(entry -> {
+                if (!entry.getValue().isTextual()) {
+                    throw new IllegalArgumentException("logDiagnostic.services values must be strings: " + entry.getKey());
+                }
+                services.put(entry.getKey(), entry.getValue().asText());
+            });
+        }
+
+        Map<String, LogEnv> environments = new LinkedHashMap<>();
+        java.util.Set<String> blockedEnvironments = new java.util.LinkedHashSet<>();
+        JsonNode environmentsNode = node.get("environments");
+        if (environmentsNode != null && !environmentsNode.isNull()) {
+            if (!environmentsNode.isObject()) {
+                throw new IllegalArgumentException("logDiagnostic.environments must be an object");
+            }
+            environmentsNode.fields().forEachRemaining(entry -> {
+                // Production environments are never loaded; they are only remembered so the
+                // rejection can be explained when somebody asks for them.
+                if (LogConfig.isProductionName(entry.getKey())) {
+                    blockedEnvironments.add(entry.getKey());
+                    return;
+                }
+                environments.put(entry.getKey(), parseLogEnv(entry.getKey(), entry.getValue()));
+            });
+        }
+
+        return LogConfig.of(defaultEnvironment, logTable, services, environments, blockedEnvironments);
+    }
+
+    private static LogEnv parseLogEnv(String name, JsonNode node) {
+        if (node == null || !node.isObject()) {
+            throw new IllegalArgumentException("logDiagnostic environment must be an object: " + name);
+        }
+        JsonNode mysql = node.get("mysql");
+        if (mysql == null || !mysql.isObject()) {
+            throw new IllegalArgumentException("log diagnostic environment requires a mysql object: " + name);
+        }
+        String host = textOrNull(mysql, "host");
+        String database = textOrNull(mysql, "database");
+        String user = textOrNull(mysql, "user");
+        String passwordEnv = textOrNull(mysql, "passwordEnv");
+        if (host == null || database == null || user == null || passwordEnv == null) {
+            throw new IllegalArgumentException(
+                    "MySQL log environment requires host, database, user, and passwordEnv: " + name);
+        }
+        int port = mysql.has("port") && mysql.get("port").canConvertToInt() ? mysql.get("port").asInt() : 3306;
+
+        LogEnv.Builder builder = LogEnv.builder(name).mysql(host, port, database, user, passwordEnv);
+
+        JsonNode apollo = node.get("apollo");
+        if (apollo != null && !apollo.isNull()) {
+            if (!apollo.isObject()) {
+                throw new IllegalArgumentException("logDiagnostic.apollo must be an object: " + name);
+            }
+            String appId = textOrNull(apollo, "appId");
+            String meta = textOrNull(apollo, "meta");
+            if (appId == null || meta == null) {
+                throw new IllegalArgumentException("Apollo log environment requires appId and meta: " + name);
+            }
+            builder.apollo(appId, meta, stringList(apollo, "namespaces"), textOrNull(apollo, "accessKeyEnv"));
+        }
+
+        return builder.build();
     }
 
     private static Profile parseProfile(String name, JsonNode node) {

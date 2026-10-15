@@ -22,7 +22,7 @@ import java.util.Map;
 public final class McpServer {
     private static final String PROTOCOL_VERSION = "2024-11-05";
     private static final String SERVER_NAME = "business-diagnostic-mcp";
-    private static final String SERVER_VERSION = "0.1.0";
+    private static final String SERVER_VERSION = "0.2.0";
 
     private final ProfileStore profiles;
     private final BufferedWriter output;
